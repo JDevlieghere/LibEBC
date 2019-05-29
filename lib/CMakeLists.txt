@@ -1,3 +1,5 @@
+project(lib)
+
 include(CheckLibraryExists)
 
 # LibXml2 Dependency
@@ -41,8 +43,8 @@ endif()
 
 # Configure header
 configure_file (
-  "${PROJECT_SOURCE_DIR}/lib/include/ebc/Config.h.in"
-  "${PROJECT_BINARY_DIR}/ebc/Config.h")
+  "${lib_SOURCE_DIR}/include/ebc/Config.h.in"
+  "${lib_BINARY_DIR}/ebc/Config.h")
 
 # UUID
 if(UNIX AND NOT APPLE)
