@@ -6,12 +6,19 @@
 #include "ebc/util/Bitcode.h"
 #include "ebc/util/UUID.h"
 
+#include "llvm/IR/Module.h"
+#include "llvm/Support/SourceMgr.h"
+#include "llvm/IRReader/IRReader.h"
+#include "llvm/IR/DiagnosticInfo.h"
+#include "llvm/IR/DiagnosticPrinter.h"
+
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <streambuf>
 
+using namespace llvm;
 namespace ebc {
 
 BitcodeContainer::BitcodeContainer(const char *data, std::size_t size)
@@ -87,7 +94,21 @@ std::vector<std::unique_ptr<EmbeddedFile>> BitcodeContainer::GetEmbeddedFiles() 
     std::size_t size = end - begin;
 
     auto fileName = _prefix + util::uuid::UuidToString(util::uuid::GenerateUUID());
-    util::bitcode::WriteToFile(_data + begin, size, fileName);
+
+    fileName = fileName + ".bc";
+    util::bitcode::WriteToFile(_data + begin, size, fileName);  // 此处需要处理末尾的00
+
+    if (verifyBC(fileName) != 0) {
+      util::bitcode::WriteToFile(_data + begin, size - 4, fileName);
+
+      if (verifyBC(fileName) != 0) {
+        const char padding[4] = {0, 0, 0, 0};
+        util::bitcode::AppendToFile(padding, 4, fileName);
+        if (verifyBC(fileName) != 0) {
+          std::cerr << "eroor" << std::endl;
+        }
+      }
+    }
 
     auto embeddedFile = EmbeddedFileFactory::CreateEmbeddedFile(fileName);
     embeddedFile->SetCommands(_commands, EmbeddedFile::CommandSource::Clang);
@@ -114,6 +135,37 @@ const std::string &BitcodeContainer::GetPrefix() const {
 
 void BitcodeContainer::SetPrefix(std::string prefix) {
   _prefix = std::move(prefix);
+}
+
+static void DiagnosticHandler(const DiagnosticInfo &DI, void *Context) {
+    bool *HasError = static_cast<bool *>(Context);
+    if (DI.getSeverity() == DS_Error)
+        *HasError = true;
+
+    DiagnosticPrinterRawOStream DP(errs());
+    errs() << LLVMContext::getDiagnosticMessagePrefix(DI.getSeverity()) << ": ";
+    DI.print(DP);
+    errs() << "\n";
+}
+
+int BitcodeContainer::verifyBC(std::string filename) const {
+    LLVMContext Context;
+    Context.setDiscardValueNames(false);
+    // Set a diagnostic handler that doesn't exit on the first error
+    bool HasError = false;
+    Context.setDiagnosticHandler(DiagnosticHandler, &HasError);
+
+    //input module
+    SMDiagnostic Err;
+    std::unique_ptr<Module> theOrginal = parseIRFile(filename, Err, Context);
+    if (!theOrginal) {
+        std ::cerr << filename <<std::endl;
+        std::cerr << "can not parse bitcode!" << Err.getMessage().str() <<"\n";
+
+        return 1;
+    }
+
+    return 0;
 }
 
 }  // namespace ebc
