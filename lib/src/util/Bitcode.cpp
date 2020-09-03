@@ -50,6 +50,18 @@ void WriteToFile(const char *data, std::size_t size, std::string file) {
   output.close();
 }
 
+void AppendToFile(const char *data, std::size_t size, std::string filename) {
+  std::ofstream file;
+  file.open(filename, std::ios::app);
+  if (file.bad())
+  {
+    std::cerr << "can not open file" << std::endl;
+  }
+  
+  file.write(data, static_cast<std::streamsize>(size));
+  file.close();
+}
+
 }  // namespace bitcode
 }  // namespace util
 }  // namespace ebc

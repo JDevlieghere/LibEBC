@@ -61,6 +61,7 @@ class BitcodeContainer {
  protected:
   void SetData(const char* data, std::size_t size) noexcept;
   std::pair<const char*, std::size_t> GetData() const;
+  int verifyBC(std::string filename) const;
 
  private:
   std::vector<std::size_t> GetEmbeddedFileOffsets() const;
