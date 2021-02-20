@@ -206,14 +206,14 @@ class BitcodeRetriever::Impl {
   /// @return The bitcode container.
   llvm::Expected<BitcodeInfo> GetBitcodeInfoFromMachO(const llvm::object::MachOObjectFile *objectFile) const {
     // For MachO return the correct arch tripple.
-    const std::string arch = objectFile->getArchTriple(nullptr).getArchName();
+    const std::string arch = objectFile->getArchTriple(nullptr).getArchName().str();
 
     auto bitcodeContainer = GetBitcodeInfo(objectFile->section_begin(), objectFile->section_end());
 
     if (bitcodeContainer != nullptr) {
       // Set binary metadata
-      bitcodeContainer->GetBinaryMetadata().SetFileName(GetFileName(objectFile->getFileName()));
-      bitcodeContainer->GetBinaryMetadata().SetFileFormatName(objectFile->getFileFormatName());
+      bitcodeContainer->GetBinaryMetadata().SetFileName(GetFileName(objectFile->getFileName().str()));
+      bitcodeContainer->GetBinaryMetadata().SetFileFormatName(objectFile->getFileFormatName().str());
       bitcodeContainer->GetBinaryMetadata().SetArch(arch);
       bitcodeContainer->GetBinaryMetadata().SetUuid(objectFile->getUuid().data());
     }
@@ -233,12 +233,12 @@ class BitcodeRetriever::Impl {
 
     if (bitcodeContainer != nullptr) {
       // Set binary metadata
-      bitcodeContainer->GetBinaryMetadata().SetFileName(GetFileName(objectFile->getFileName()));
-      bitcodeContainer->GetBinaryMetadata().SetFileFormatName(objectFile->getFileFormatName());
-      bitcodeContainer->GetBinaryMetadata().SetArch(arch);
+      bitcodeContainer->GetBinaryMetadata().SetFileName(GetFileName(objectFile->getFileName().str()));
+      bitcodeContainer->GetBinaryMetadata().SetFileFormatName(objectFile->getFileFormatName().str());
+      bitcodeContainer->GetBinaryMetadata().SetArch(arch.str());
     }
 
-    return BitcodeInfo(arch, std::move(bitcodeContainer));
+    return BitcodeInfo(arch.str(), std::move(bitcodeContainer));
   }
 
   /// Obtains data from a section.
@@ -247,8 +247,7 @@ class BitcodeRetriever::Impl {
   ///
   /// @return A pair with the data and the size of the data.
   static std::pair<const char *, std::size_t> GetSectionData(const llvm::object::SectionRef &section) {
-    StringRef bytesStr;
-    section.getContents(bytesStr);
+    auto bytesStr = section.getContents().get();
     const char *sect = reinterpret_cast<const char *>(bytesStr.data());
     return {sect, bytesStr.size()};
   }
@@ -281,8 +280,7 @@ class BitcodeRetriever::Impl {
     std::vector<std::string> commands;
 
     for (auto it = begin; it != end; ++it) {
-      StringRef sectName;
-      it->getName(sectName);
+      StringRef sectName = it->getName().get();
 
       if (sectName == ".llvmbc" || sectName == "__bitcode") {
         assert(!bitcodeContainer && "Multiple bitcode sections!");
